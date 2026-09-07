@@ -2,7 +2,7 @@
   "name": "desafio-codificacao-terra-fertil",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "rateio.js",
   "scripts": {
     "test":  "vitest run",
     "test:watch": "vitest"
@@ -14,7 +14,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Luisdevux/desafio-codificacao-terra-fertil/issues"
   },
