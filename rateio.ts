@@ -40,6 +40,7 @@ export function ratearMudas(
     totalMudas: number,
     associacoes: Associacao[]
 ): ResultadoRateio {
+
     // !Number.isInteger já cobre casos onde o valor é NaN, null, undefined, string, números quebrados...
     // tudo que poderia falhar nas validações e causar problemas
     if(!Number.isInteger(totalMudas) || totalMudas < 0) {
@@ -48,6 +49,15 @@ export function ratearMudas(
 
     if(!Array.isArray(associacoes)) {
         throw new RateioError("A lista de associações deve ser um array!");
+    }
+
+    // Se a lista vier vazia, não vai ter como distribuir nada, então já lança o resultado
+    if(associacoes.length === 0) {
+        return {
+            distribuicoes: [],
+            totalDistribuido: 0,
+            sobraNaoDistribuida: totalMudas
+        };
     }
 
     const cnpjsValidos = new Set<string>(); //Set é uma coleção de valores únicos que não vai deixar repetir
@@ -88,7 +98,22 @@ export function ratearMudas(
         cnpjsValidos.add(associacao.cnpj);
     }
 
-    
+    // Separa as associações em 2 grupos, as regulares e as irregulares
+    const distribuidasExcluidas: Distribuicao[] = [];
+    const associacoesValidas: Associacao[] = [];
 
-
+    for(const associacao of associacoes) {
+        if(associacao.situacao === "suspensa" || associacao.situacao === "irregular" || associacao.familias === 0) {
+            distribuidasExcluidas.push({
+                cnpj: associacao.cnpj,
+                nome: associacao.nome,
+                bandejas: 0,
+                mudas: 0,
+                motivoExclusao: associacao.situacao !== "regular" ?
+                `Situação cadastral: ${associacao.situacao}` : "Associação sem famílias cadastradas"
+            });
+        } else {
+            associacoesValidas.push(associacao);
+        }
+    }
 }
