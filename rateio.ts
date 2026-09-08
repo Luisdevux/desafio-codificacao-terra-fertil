@@ -116,4 +116,29 @@ export function ratearMudas(
             associacoesValidas.push(associacao);
         }
     }
+
+    // Calcula o total de mudas por bandeja que podem ser distribuídas
+    const loteBandejas = Math.floor(totalMudas / MUDAS_POR_BANDEJA);
+
+    // O edital fala que o objeto deve ser imutável, então faço um novo com os campos novos e já calculados, e o original fica puro
+    const associacoesElegiveis = associacoesValidas.map(associacao => ({
+        cnpj: associacao.cnpj,
+        nome: associacao.nome,
+        familias: associacao.familias,
+        cotaBandejas: Math.floor(associacao.cotaMaxima / MUDAS_POR_BANDEJA),
+        bandejas: 0,
+        saturado: false
+    }));
+
+    let bandejasParaDistribuir = loteBandejas;
+
+    while (true) {
+        // Filtra quem ainda pode receber bandejas e não atingiu a cota máxima
+        const associacoesDisponiveis = associacoesElegiveis.filter(a => !a.saturado);
+
+        // Se não for mais possível distribuir, sai do loop
+        if(associacoesDisponiveis.length === 0 || bandejasParaDistribuir === 0) {
+            break;
+        }
+    }
 }
