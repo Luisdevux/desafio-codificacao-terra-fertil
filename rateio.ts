@@ -3,10 +3,6 @@ export const MUDAS_POR_BANDEJA = 50;
 
 export type SituacaoCadastral = "regular" | "suspensa" | "irregular";
 
-// Classe RateioError que vai lançar alguns erros especificos
-// 'extends' reconhece a classe RateioError como um erro oficial que herda a classe Error nativa
-// 'super' ativa o construtor da classe Error nativa com a mensagem que vai ser disparada
-// A escolha por usar o this.name é para deixar o nome claro e dar mais rastreabilidade ao erro
 export class RateioError extends Error {
     constructor(message: string) {
         super(message);
@@ -39,8 +35,6 @@ export interface ResultadoRateio {
 
 export function ratearMudas(totalMudas: number, associacoes: Associacao[]): ResultadoRateio {
 
-    // !Number.isInteger já cobre casos onde o valor é NaN, null, undefined, string, números quebrados...
-    // tudo que poderia falhar nas validações e causar problemas
     if(!Number.isInteger(totalMudas) || totalMudas < 0) {
         throw new RateioError("O total de mudas deve ser um número e não pode ser negativo!");
     }
@@ -58,14 +52,14 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
         };
     }
 
-    const cnpjsValidos = new Set<string>(); //Set é uma coleção de valores únicos que não vai deixar repetir
+    const cnpjsValidos = new Set<string>();
     for(const associacao of associacoes) {
         // Validação simples para previnir algo fora do padrão esperado e garantir objetos
         if(!associacao || typeof associacao !== "object") {
             throw new RateioError("Entrada inválida, associacao deve ser um objeto!");
         }
 
-        // Se algum dos campos vierem vazios ou inválidos, vai cair no erro, fazendo meio que o trabalho que o Zod faria
+        // Se algum dos campos vierem vazios ou inválidos, vai cair no erro, seria uma forma mais simpless de fazer o que o Zod faria
         const camposTextoInvalidos = 
             typeof associacao.cnpj !== "string" || associacao.cnpj.trim() === "" ||
             typeof associacao.nome !== "string" || associacao.nome.trim() === "" ||
@@ -83,7 +77,7 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
             throw new RateioError("'Famílias' e 'cota máxima' devem ser números inteiros e não podem ser negativos!");
         }
 
-        // Aqui valida se a associação tem uma situação válida
+        // Validação se a associação tem uma situação válida
         if(!situacoesValidas.includes(associacao.situacao)) {
             throw new RateioError(`Situação cadastral inválida: ${associacao.situacao}`);
         }
@@ -118,7 +112,7 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
     // Calcula o total de mudas por bandeja que podem ser distribuídas
     const loteBandejas = Math.floor(totalMudas / MUDAS_POR_BANDEJA);
 
-    // O edital fala que o objeto deve ser imutável, então faço um novo com os campos novos e já calculados, e o original fica puro
+    // Faço um novo mapeamento com os campos novos e já calculados, e o original fica puro e imutável
     const associacoesParticipantes = associacoesValidas.map(associacao => ({
         cnpj: associacao.cnpj,
         nome: associacao.nome,
@@ -139,7 +133,7 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
             break;
         }
 
-        // Aqui usa o reduce para calcula o total de familias de cada associação que vão participar da rodada de distribuição
+        // Calcula o total de familias de cada associação que vão participar da rodada de distribuição
         const totalFamilias = associacoesDisponiveis.reduce((soma, a) => soma + a.familias, 0);
 
         // Calculo da primeira distribuição entre as associações e verifica sobras para nova rodada de distribuição se possível
@@ -165,12 +159,12 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
                 return b.resto - a.resto;
             }
 
-            // Já aqui, se as associações tiverem o mesmo resto, ganha quem tiver menos famílias, critério de desempate
+            // Se as associações tiverem o mesmo resto, ganha quem tiver menos famílias, que é um critério de desempate
             if(a.associacao.familias !== b.associacao.familias) {
                 return a.associacao.familias - b.associacao.familias;
             }
 
-            // Então se ainda estiver em situação de empate, aqui faz uma comparação por nomes, com o localeCompare
+            // Então se ainda estiver em situação de empate, faz uma comparação por nomes, com o localeCompare
             // para respeitar a acentuação e a ordem alfabética correta do português brasileiro, ignorando maiúsculas e minúsculas
             const comparacaoPorNome = a.associacao.nome.localeCompare(b.associacao.nome, "pt-BR");
             if(comparacaoPorNome !== 0) {
@@ -189,12 +183,11 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
             }
         }
 
-        // Aqui faz uma verificação de a associação atingiu a cota máxima de bandejas
         const cotaMaximaAtingida = distribuicaoProvisoria.some(
             item => item.bandejasTentativas > item.associacao.cotaBandejas
         );
 
-        // Então se alguma atingiu vai marcar o campo saturado como true e vai retirar essa associação de uma próxima rodada
+        // Então se alguma atingiu a cota máxima, vai marcar o campo saturado como true e vai retirar essa associação de uma próxima rodada
         if(cotaMaximaAtingida) {
             for(const item of distribuicaoProvisoria) {
                 if(item.bandejasTentativas > item.associacao.cotaBandejas) {
@@ -203,7 +196,7 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
                 }
             }
 
-            // Aqui vai calcular quantas já foram distribuidas novamente para ver as sobras e continuar a distribuição
+            // Calcula quantas já foram distribuidas novamente para ver as sobras e continuar a distribuição
             const bandejasJaDistribuidas = associacoesParticipantes.filter(a => a.saturado)
             .reduce((soma, associacao) => soma + associacao.bandejas, 0);
 
@@ -218,7 +211,7 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
         }
     }
 
-    // Aqui monto a lista final das distribuições, com o número de bandejas e mudas recebidas por cada associação
+    // Lista final das distribuições, com o número de bandejas e mudas recebidas por cada associação
     const distribuicoesFinal: Distribuicao[] = associacoesParticipantes.map(associacao => ({
         cnpj: associacao.cnpj,
         nome: associacao.nome,
@@ -242,7 +235,6 @@ export function ratearMudas(totalMudas: number, associacoes: Associacao[]): Resu
     const totalDistribuido = totalDistribuicoesFinal.reduce((soma, distribuicao) => soma + distribuicao.mudas, 0);
     const sobraNaoDistribuida = totalMudas - totalDistribuido;
 
-    // Montagem do objeto final com os resultados do rateio
     return {
         distribuicoes: totalDistribuicoesFinal,
         totalDistribuido,
